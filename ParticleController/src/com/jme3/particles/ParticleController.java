@@ -36,6 +36,7 @@ import com.jme3.export.JmeExporter;
 import com.jme3.export.JmeImporter;
 import com.jme3.export.OutputCapsule;
 import com.jme3.math.FastMath;
+import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.RenderManager;
 import com.jme3.renderer.ViewPort;
@@ -69,6 +70,8 @@ public class ParticleController extends AbstractControl {
     private int nextIndex = 0;
     private Geometry geometry = null;
     private Camera camera;
+    
+    private int activeCount=0;
 
     /**
      * Constructs a new ParticleController with the given name (optional) and
@@ -185,6 +188,15 @@ public class ParticleController extends AbstractControl {
     }
 
     /**
+     * Gets how many particles are currently active.
+     * 
+     * @return The number of particles which were active last frame.
+     */
+    public int getActiveCount() {
+        return activeCount;
+    }
+    
+    /**
      * The geometry used by the particles. This is created automatically and
      * should be attached to the scene graph. Transforming the geometry will
      * modify all existing particles but will have no adverse effects.
@@ -285,6 +297,7 @@ public class ParticleController extends AbstractControl {
         return lifeMax;
     }
 
+    
     @Override
     protected void controlRender(RenderManager rm, ViewPort vp) {
         camera = vp.getCamera();
@@ -309,8 +322,11 @@ public class ParticleController extends AbstractControl {
     @Override
     public void controlUpdate(float tpf) {
         if (enabled) {
+            activeCount = 0;
+            
             for (int i = 0; i < particles.length; i++) {
                 if (particles[i].active) {
+                    activeCount++;
                     updateParticle(i, tpf);
                 }
             }
@@ -322,6 +338,10 @@ public class ParticleController extends AbstractControl {
             
             mesh.updateParticleData(camera, this);
             geometry.updateModelBound();
+            
+            if (emissionController.shouldAutoDisable() && activeCount == 0) {
+                setEnabled(false);
+            }
         }
     }
 
@@ -337,22 +357,33 @@ public class ParticleController extends AbstractControl {
 
         if (nextIndex != -1) {
             emitParticle(nextIndex);
-            int searchIndex = nextIndex;
-            do {
-                searchIndex++;
-                if (searchIndex >= particles.length) {
-                    searchIndex = 0;
-                }
-                if (searchIndex == nextIndex) {
-                    searchIndex = -1;
-                    break;
-                }
-            } while (particles[searchIndex].active);
 
-            nextIndex = searchIndex;
+            updateNextParticle();
         }
         return ret;
     }
+
+    /**
+     * Emits the next available (non-active) particle
+     *
+     * @return -1 if the particle could not be emitted (most likely because the
+     * maximum number were already active), otherwise the index of the emitted
+     * particle.
+     */
+    public int emitNextParticleFrom(Vector3f startLocation, Vector3f startVelocity) {
+        int ret = nextIndex;
+
+        if (nextIndex != -1) {
+            ParticleData pd = particles[nextIndex];
+            pd.position.set(startLocation);
+            pd.velocity.set(startVelocity);
+            activateParticle(pd, nextIndex);
+
+            updateNextParticle();
+        }
+        return ret;
+    }
+    
 
     /**
      * Emits all non-active particles
@@ -369,15 +400,13 @@ public class ParticleController extends AbstractControl {
     private void emitParticle(int index) {
         ParticleData pd = particles[index];
         source.sourceParticle(this, index, pd);
-        pd.activate(lifeMin + lifeDiff * FastMath.nextRandomFloat());
-        ParticleInfluencer[] array = influencers.getArray();
-        for (int i = 0; i < array.length; i++) {
-            array[i].influenceParticleCreation(this, index, pd);
-        }
+        activateParticle(pd, index);
     }
 
     /**
-     * Deactivates and resets the specified particle
+     * Deactivates and resets the specified particle. Note that killing a particle
+     * by index is more efficient than killing it by ParticleData so the other
+     * form of this method is recommended.
      *
      * @param p The particle to reset
      */
@@ -401,6 +430,15 @@ public class ParticleController extends AbstractControl {
         emissionController.notifyParticleDeath(this, index);
     }
 
+    /**
+     * Kill all particles.
+     */
+    public void killAllParticles() {
+        for (int i=0;i<particles.length;i++) {
+            killParticle(i);
+        }
+    }
+    
     private void setNextIndex(int index) {
         if (index < nextIndex || nextIndex == -1) {
             nextIndex = index;
@@ -474,5 +512,34 @@ public class ParticleController extends AbstractControl {
         }
 
         return clone;
+    }
+
+    private void updateNextParticle() {
+        int searchIndex = nextIndex;
+        do {
+            searchIndex++;
+            if (searchIndex >= particles.length) {
+                searchIndex = 0;
+            }
+            if (searchIndex == nextIndex) {
+                searchIndex = -1;
+                break;
+            }
+        } while (particles[searchIndex].active);
+
+        nextIndex = searchIndex;
+    }
+
+    private void activateParticle(ParticleData pd, int index) {
+        pd.activate(lifeMin + lifeDiff * FastMath.nextRandomFloat());
+        ParticleInfluencer[] array = influencers.getArray();
+        for (int i = 0; i < array.length; i++) {
+            array[i].influenceParticleCreation(this, index, pd);
+        }
+        activeCount ++;
+        
+        if (!enabled && emissionController.shouldAutoDisable()) {
+            setEnabled(true);
+        }
     }
 }

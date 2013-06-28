@@ -72,6 +72,11 @@ public interface ParticleEmissionController extends Savable {
         @Override
         public void notifyParticleDeath(ParticleController ctrlr, int particleIndex) {
         }
+
+        @Override
+        public boolean shouldAutoDisable() {
+            return true;
+        }
     };
     
     /**
@@ -102,4 +107,13 @@ public interface ParticleEmissionController extends Savable {
      */
     public ParticleEmissionController cloneForController(ParticleController controller);
     
+    /**
+     * If this returns true then the ParticleController will disable itself when it has
+     * no active particles, automatically enabling itself when one is emitted. If this
+     * results false then the particle controller will always keep running, even with
+     * no particles active.
+     * 
+     * @return true - auto-disable is on. False - auto-disable is off
+     */
+    public boolean shouldAutoDisable();
 }

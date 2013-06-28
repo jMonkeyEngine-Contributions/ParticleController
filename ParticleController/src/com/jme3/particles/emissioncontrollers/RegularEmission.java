@@ -92,5 +92,10 @@ public class RegularEmission implements ParticleEmissionController {
     @Override
     public void notifyParticleDeath(ParticleController ctrlr, int particleIndex) {
     }
+
+    @Override
+    public boolean shouldAutoDisable() {
+        return false;
+    }
     
 }
