@@ -92,13 +92,23 @@ public class WeightedMeshSource implements ParticleSource {
         float totalWeight = 0;
         for (int i=0;i<weights.length;i++) {
             geometry.getMesh().getTriangle(i, triStore);
+            
+            // Calculate two sides of the triangle
             origin.set(triStore.get1());
             side1.set(triStore.get2()).subtractLocal(origin);
             side2.set(triStore.get3()).subtractLocal(origin);
             
+            // Extract the length of the two sides
+            float length1 = side1.length();
+            float length2 = side2.length();
+
+            // Normalize the sides so that we can calculate the angle in order to get the area
+            side1.divideLocal(length1);
+            side2.divideLocal(length2);
+            
             // This will calculate double the area for all the triangles, since we are
             // looking at proportional difference this *2 will cancel out so no need to divide
-            weights[i] = side1.length() + side2.length();
+            weights[i] = length1 * length2 * FastMath.sin(side1.angleBetween(side2));
             totalWeight += weights[i];
         }
         
