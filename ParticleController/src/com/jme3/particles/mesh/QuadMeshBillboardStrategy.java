@@ -34,6 +34,7 @@ package com.jme3.particles.mesh;
 import com.jme3.math.FastMath;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
+import com.jme3.particles.ParticleController;
 import com.jme3.particles.ParticleData;
 import com.jme3.renderer.Camera;
 
@@ -45,7 +46,6 @@ import com.jme3.renderer.Camera;
  */
 public abstract class QuadMeshBillboardStrategy {
 
-    private static final Vector3f workingV3 = new Vector3f();
     private static final Quaternion workingQ = new Quaternion();
 
     /**
@@ -57,7 +57,7 @@ public abstract class QuadMeshBillboardStrategy {
      * @param left Store into this the desired left vector for the particle
      * @param dir Store into this the desired direction vector for the particle
      */
-    public abstract void billboard(Camera cam, ParticleData p, Vector3f up, Vector3f left, Vector3f dir);
+    public abstract void billboard(Camera cam, ParticleController ctrlr, ParticleData p, Vector3f up, Vector3f left, Vector3f dir);
     
     /**
      * This billboards all particles in their current direction of travel, with Y axis up
@@ -65,7 +65,7 @@ public abstract class QuadMeshBillboardStrategy {
     public static final QuadMeshBillboardStrategy VELOCITY = new QuadMeshBillboardStrategy() {
 
         @Override
-        public void billboard(Camera cam, ParticleData p, Vector3f up, Vector3f left, Vector3f dir) {
+        public void billboard(Camera cam, ParticleController ctrlr, ParticleData p, Vector3f up, Vector3f left, Vector3f dir) {
             up.set(p.velocity).crossLocal(Vector3f.UNIT_Y).normalizeLocal();
             left.set(p.velocity).crossLocal(up).normalizeLocal();
             dir.set(p.velocity);
@@ -79,7 +79,7 @@ public abstract class QuadMeshBillboardStrategy {
     public static final QuadMeshBillboardStrategy VELOCITY_Z_UP = new QuadMeshBillboardStrategy() {
 
         @Override
-        public void billboard(Camera cam, ParticleData p, Vector3f up, Vector3f left, Vector3f dir) {
+        public void billboard(Camera cam, ParticleController ctrlr, ParticleData p, Vector3f up, Vector3f left, Vector3f dir) {
                 up.set(p.velocity).crossLocal(Vector3f.UNIT_Y).normalizeLocal();
                 left.set(p.velocity).crossLocal(up).normalizeLocal();
                 dir.set(p.velocity);
@@ -96,7 +96,7 @@ public abstract class QuadMeshBillboardStrategy {
     public static final QuadMeshBillboardStrategy USE_PARTICLE_ROTATION = new QuadMeshBillboardStrategy() {
 
         @Override
-        public void billboard(Camera cam, ParticleData p, Vector3f up, Vector3f left, Vector3f dir) {
+        public void billboard(Camera cam, ParticleController ctrlr, ParticleData p, Vector3f up, Vector3f left, Vector3f dir) {
             up.set(Vector3f.UNIT_Z);
             left.set(Vector3f.UNIT_X);
             dir.set(Vector3f.UNIT_Y);
@@ -115,10 +115,27 @@ public abstract class QuadMeshBillboardStrategy {
     public static final QuadMeshBillboardStrategy CAMERA = new QuadMeshBillboardStrategy() {
 
         @Override
-        public void billboard(Camera cam, ParticleData p, Vector3f up, Vector3f left, Vector3f dir) {
+        public void billboard(Camera cam, ParticleController ctrlr, ParticleData p, Vector3f up, Vector3f left, Vector3f dir) {
             up.set(cam.getUp());
             left.set(cam.getLeft());
             dir.set(cam.getDirection());
+        }
+    };
+
+    /**
+     * This version of CAMERA Billboard compensates for rotation of the node to which the
+     * Particle Geometry is attached. It performs more calculations than the standard
+     * camera billboarding so should only be used when required.
+     */
+    public static final QuadMeshBillboardStrategy CAMERA_ROTATION_SAFE = new QuadMeshBillboardStrategy() {
+
+        @Override
+        public void billboard(Camera cam, ParticleController ctrlr, ParticleData p, Vector3f up, Vector3f left, Vector3f dir) {
+            workingQ.set(ctrlr.getGeometry().getWorldRotation());
+            workingQ.inverseLocal();
+            workingQ.mult(cam.getUp(), up);
+            workingQ.mult(cam.getLeft(), left);
+            workingQ.mult(cam.getDirection(), dir);
         }
     };
 
@@ -144,7 +161,7 @@ public abstract class QuadMeshBillboardStrategy {
         }
         
         @Override
-        public void billboard(Camera cam, ParticleData p, Vector3f up, Vector3f left, Vector3f dir) {
+        public void billboard(Camera cam, ParticleController ctrlr, ParticleData p, Vector3f up, Vector3f left, Vector3f dir) {
             up.set(this.up);
             left.set(this.left);
             dir.set(this.dir);

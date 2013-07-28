@@ -225,10 +225,10 @@ public class QuadMesh extends ParticleMesh {
             if (p.active) {
 
                 if (cam != null) {
-                    billboardStrategy.billboard(cam, p, up, left, dir);
+                    billboardStrategy.billboard(cam, controller, p, up, left, dir);
                 } else {
                     // Fall back to fixed orientation until camera information is available
-                    QuadMeshBillboardStrategy.UNIT_Y.billboard(cam, p, up, left, dir);
+                    QuadMeshBillboardStrategy.UNIT_Y.billboard(cam, controller, p, up, left, dir);
                 }
                 up.multLocal(p.size);
                 left.multLocal(p.size);
